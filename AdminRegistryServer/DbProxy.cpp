@@ -59,6 +59,11 @@ int DbProxy::init(TC_Config *pconf)
 		assert((_mysqlLocks.size() == _mysqlReg.size()) && (_mysqlReg.size() > 0));
 
         _patchHistory = TC_Common::strto<int>(pconf->get("/tars/patch<patchHistory>", "200"));
+
+        if(_patchHistory < 10)
+        {
+	        _patchHistory = 10;
+        }
     }
     catch (TC_Config_Exception& ex)
     {
@@ -123,7 +128,7 @@ int DbProxy::getTaskRsp(const string &taskNo, TaskRsp &taskRsp)
 
     try
     {
-		tars::TC_Mysql::MysqlData item;
+		TC_Mysql::MysqlData item;
 		{
 			MYSQL_LOCK;
         	string sSql = "select * from t_task as t1, t_task_item as t2 where t1.task_no=t2.task_no and t2.task_no='"
@@ -180,7 +185,7 @@ int DbProxy::getTaskHistory(const string & application, const string & serverNam
 
     try
     {
-		tars::TC_Mysql::MysqlData res;
+		TC_Mysql::MysqlData res;
 
 		{
 			MYSQL_LOCK;
@@ -231,7 +236,7 @@ int DbProxy::getTaskHistory(const string & application, const string & serverNam
     }
     catch (exception &ex)
     {
-        TLOGERROR("DbProxy::getTaskHistory exception: " << ex.what() << endl);
+        TLOGERROR(__FUNCTION__ << " exception: " << ex.what() << endl);
         return -1;
     }
 
@@ -273,7 +278,7 @@ int DbProxy::setTaskItemInfo(const string & itemNo, const map<string, string> &i
     }
     catch (exception &ex)
     {
-        TLOGERROR("DbProxy::setTaskItemInfo exception: " << ex.what() << endl);
+        TLOGERROR(__FUNCTION__ << " exception: " << ex.what() << endl);
         return -1;
     }
 
@@ -296,7 +301,7 @@ int DbProxy::undeploy(const string & application, const string & serverName, con
     catch (exception &ex)
     {
         log = ex.what();
-        TLOGERROR("DbProxy::undeploy exception: " << ex.what() << endl);
+        TLOGERROR(__FUNCTION__ << " exception: " << ex.what() << endl);
         return -1;
     }
 
@@ -312,13 +317,14 @@ map<string, string> DbProxy::getActiveNodeList(string& result)
                       "select node_name, node_obj from t_node_info "
                       "where present_state='active'";
 
-		tars::TC_Mysql::MysqlData res;
+		TC_Mysql::MysqlData res;
 
 		{
 			MYSQL_LOCK;
 			res = MYSQL_INDEX->queryRecord(sSql);
 		}
-        TLOGDEBUG("DbProxy::getActiveNodeList (present_state='active') affected:" << res.size() << endl);
+		
+        TLOGDEBUG(__FUNCTION__ << " (present_state='active') affected:" << res.size() << endl);
         for (unsigned i = 0; i < res.size(); i++)
         {
             mapNodeList[res[i]["node_name"]] = res[i]["node_obj"];
@@ -371,7 +377,7 @@ int DbProxy::getNodeVersion(const string& nodeName, string& version, string& res
                       "select tars_version from t_node_info "
                       "where node_name='" + MYSQL_INDEX->escapeString(nodeName) + "'";
 
-        tars::TC_Mysql::MysqlData res = MYSQL_INDEX->queryRecord(sSql);
+        TC_Mysql::MysqlData res = MYSQL_INDEX->queryRecord(sSql);
         TLOGDEBUG(__FUNCTION__ << " (node_name='" << nodeName << "') affected:" << res.size() << endl);
         if (res.size() > 0)
         {
@@ -471,7 +477,7 @@ vector<ServerDescriptor> DbProxy::getServers(const string& app, const string& se
 
     try
     {
-		tars::TC_Mysql::MysqlData res;
+		TC_Mysql::MysqlData res;
 		{
 			MYSQL_LOCK;
         //server详细配置
@@ -615,7 +621,7 @@ int DbProxy::getNodeList(const string& app, const string& serverName, vector<str
 		MYSQL_LOCK;
         string sSql = "select node_name from t_server_conf where application='" + MYSQL_INDEX->escapeString(app) + "' and server_name='" + MYSQL_INDEX->escapeString(serverName) + "'";
 
-        tars::TC_Mysql::MysqlData res = MYSQL_INDEX->queryRecord(sSql);
+        TC_Mysql::MysqlData res = MYSQL_INDEX->queryRecord(sSql);
 
         for (unsigned i = 0; i < res.size(); i++)
         {
@@ -641,7 +647,7 @@ string DbProxy::getProfileTemplate(const string& sTemplateName, map<string, int>
 {
     try
     {
-		tars::TC_Mysql::MysqlData res;
+		TC_Mysql::MysqlData res;
 		{
 			MYSQL_LOCK;
 			string sSql = "select template_name, parents_name, profile from t_profile_template "
@@ -691,7 +697,7 @@ vector<string> DbProxy::getAllApplicationNames(string& result)
     vector<string> vApps;
     try
     {
-		tars::TC_Mysql::MysqlData res;
+		TC_Mysql::MysqlData res;
 		{
 			MYSQL_LOCK;
 			string sSql = "select distinct application from t_server_conf";
@@ -721,7 +727,7 @@ vector<vector<string> > DbProxy::getAllServerIds(string& result)
     vector<vector<string> > vServers;
     try
     {
-		tars::TC_Mysql::MysqlData res;
+		TC_Mysql::MysqlData res;
 		MYSQL_LOCK;
         string sSql = "select application, server_name, node_name, setting_state, present_state,server_type from t_server_conf";
 
@@ -834,7 +840,7 @@ NodePrx DbProxy::getNodePrx(const string& nodeName)
             return _mapNodePrxCache[nodeName];
         }
 
-		tars::TC_Mysql::MysqlData res;
+		TC_Mysql::MysqlData res;
 		{
 			MYSQL_LOCK;
 			string sSql = "select node_obj "
@@ -966,7 +972,7 @@ int DbProxy::updateRegistryInfo2Db(bool bRegHeartbeatOff)
         }
 
         MYSQL_INDEX->execute(sSql);
-        // TLOGDEBUG(__FUNCTION__ << ", sql:" << sSql << " affected:" << MYSQL_INDEX->getAffectedRows() << endl);
+        TLOGDEBUG(__FUNCTION__ << " affected:" << MYSQL_INDEX->getAffectedRows() << endl);
     }
     catch (TC_Mysql_Exception& ex)
     {
@@ -986,7 +992,7 @@ int DbProxy::loadIPPhysicalGroupInfo()
 {
     try
     {
-		tars::TC_Mysql::MysqlData res;
+		TC_Mysql::MysqlData res;
 		{
 			MYSQL_LOCK;
 			string sSql = "select group_id,ip_order,allow_ip_rule,denny_ip_rule,group_name from t_server_group_rule "
@@ -1019,7 +1025,7 @@ int DbProxy::getInfoByPatchId(const string &patchId, string &patchFile, string &
     {
 		MYSQL_LOCK;
         string sSql = "select tgz, md5 from t_server_patchs where id=" + patchId;
-        tars::TC_Mysql::MysqlData res = MYSQL_INDEX->queryRecord(sSql);
+        TC_Mysql::MysqlData res = MYSQL_INDEX->queryRecord(sSql);
 
         if (res.size() == 0)
         {
